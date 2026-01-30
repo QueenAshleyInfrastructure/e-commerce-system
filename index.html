@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Commerce Product Management System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 40px;
+        }
+        
+        header h1 {
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        header p {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .controls {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        
+        button {
+            background: white;
+            color: #667eea;
+            border: none;
+            padding: 15px 30px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 25px;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+        
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.3);
+        }
+        
+        button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.5rem;
+            margin: 50px 0;
+        }
+        
+        .spinner {
+            border: 5px solid rgba(255,255,255,0.3);
+            border-top: 5px solid white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 25px;
+            margin-bottom: 30px;
+        }
+        
+        .product-card {
+            background: white;
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            transition: transform 0.3s;
+        }
+        
+        .product-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .product-image {
+            width: 100%;
+            height: 200px;
+            object-fit: contain;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            background: #f8f9fa;
+        }
+        
+        .product-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+            min-height: 60px;
+        }
+        
+        .product-category {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin-bottom: 15px;
+        }
+        
+        .product-rating {
+            color: #ffc107;
+            margin-bottom: 15px;
+            font-size: 1.1rem;
+        }
+        
+        .price-section {
+            border-top: 2px solid #f0f0f0;
+            padding-top: 15px;
+        }
+        
+        .price-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 8px;
+            color: #666;
+        }
+        
+        .price-row.original {
+            text-decoration: line-through;
+            color: #999;
+        }
+        
+        .price-row.discount {
+            color: #e74c3c;
+            font-weight: bold;
+        }
+        
+        .price-row.final {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #27ae60;
+            border-top: 2px solid #f0f0f0;
+            padding-top: 10px;
+            margin-top: 10px;
+        }
+        
+        .error {
+            background: #e74c3c;
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🛍️ E-Commerce Product System</h1>
+            <p>TypeScript-Powered Product Management</p>
+        </header>
+        
+        <div class="controls">
+            <button id="loadBtn" onclick="loadProducts()">Load All Products</button>
+            <button id="loadOneBtn" onclick="loadSingleProduct()">Load Random Product</button>
+        </div>
+        
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Fetching products...</p>
+        </div>
+        
+        <div id="error" class="error" style="display: none;"></div>
+        
+        <div id="products" class="products-grid"></div>
+    </div>
+
+    <script type="module">
+        import { Product } from './dist/models/Product.js';
+        import { APIService } from './dist/services/apiService.js';
+        import { handleError } from './dist/utils/errorHandler.js';
+
+        const apiService = new APIService();
+        
+        window.loadProducts = async function() {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const products = document.getElementById('products');
+            const loadBtn = document.getElementById('loadBtn');
+            const loadOneBtn = document.getElementById('loadOneBtn');
+            
+            try {
+                loading.style.display = 'block';
+                error.style.display = 'none';
+                products.innerHTML = '';
+                loadBtn.disabled = true;
+                loadOneBtn.disabled = true;
+                
+                const productsData = await apiService.fetchProducts();
+                const productInstances = productsData.slice(0, 10).map(data => {
+                    const discountPercentage = Math.floor(Math.random() * 30);
+                    return new Product({ ...data, discountPercentage });
+                });
+                
+                loading.style.display = 'none';
+                loadBtn.disabled = false;
+                loadOneBtn.disabled = false;
+                
+                productInstances.forEach(product => {
+                    products.innerHTML += createProductCard(product);
+                });
+                
+            } catch (err) {
+                loading.style.display = 'none';
+                error.style.display = 'block';
+                error.textContent = `Error: ${err.message}`;
+                loadBtn.disabled = false;
+                loadOneBtn.disabled = false;
+            }
+        };
+        
+        window.loadSingleProduct = async function() {
+            const loading = document.getElementById('loading');
+            const error = document.getElementById('error');
+            const products = document.getElementById('products');
+            const loadBtn = document.getElementById('loadBtn');
+            const loadOneBtn = document.getElementById('loadOneBtn');
+            
+            try {
+                loading.style.display = 'block';
+                error.style.display = 'none';
+                products.innerHTML = '';
+                loadBtn.disabled = true;
+                loadOneBtn.disabled = true;
+                
+                const randomId = Math.floor(Math.random() * 20) + 1;
+                const productData = await apiService.fetchProduct(randomId);
+                const discountPercentage = Math.floor(Math.random() * 30);
+                const product = new Product({ ...productData, discountPercentage });
+                
+                loading.style.display = 'none';
+                loadBtn.disabled = false;
+                loadOneBtn.disabled = false;
+                
+                products.innerHTML = createProductCard(product);
+                
+            } catch (err) {
+                loading.style.display = 'none';
+                error.style.display = 'block';
+                error.textContent = `Error: ${err.message}`;
+                loadBtn.disabled = false;
+                loadOneBtn.disabled = false;
+            }
+        };
+        
+        function createProductCard(product) {
+            const discount = product.getPriceWithDiscount();
+            const taxRate = product.category === 'groceries' ? 0.03 : 0.0475;
+            const tax = discount * taxRate;
+            const finalPrice = discount + tax;
+            const stars = '⭐'.repeat(Math.round(product.rating.rate));
+            
+            return `
+                <div class="product-card">
+                    <img src="${product.image}" alt="${product.title}" class="product-image">
+                    <h3 class="product-title">${product.title}</h3>
+                    <span class="product-category">${product.category}</span>
+                    <div class="product-rating">${stars} ${product.rating.rate}/5 (${product.rating.count})</div>
+                    <div class="price-section">
+                        <div class="price-row original">
+                            <span>Original Price:</span>
+                            <span>$${product.price.toFixed(2)}</span>
+                        </div>
+                        <div class="price-row discount">
+                            <span>Discount (${product.discountPercentage}%):</span>
+                            <span>-$${(product.price - discount).toFixed(2)}</span>
+                        </div>
+                        <div class="price-row">
+                            <span>After Discount:</span>
+                            <span>$${discount.toFixed(2)}</span>
+                        </div>
+                        <div class="price-row">
+                            <span>Tax:</span>
+                            <span>$${tax.toFixed(2)}</span>
+                        </div>
+                        <div class="price-row final">
+                            <span>Final Price:</span>
+                            <span>$${finalPrice.toFixed(2)}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+    </script>
+</body>
+</html>
